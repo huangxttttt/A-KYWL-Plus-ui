@@ -61,3 +61,18 @@ export const delSms = (id: string | number | Array<string | number>) => {
     method: 'delete'
   });
 };
+
+
+export const importSms = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return request({
+    url: '/system/sms/import',
+    method: 'post',
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    data: formData
+  });
+};

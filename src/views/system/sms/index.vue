@@ -39,6 +39,36 @@
           <el-col :span="1.5">
             <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['system:sms:export']">导出</el-button>
           </el-col>
+          <el-col :span="1.5">
+            <el-upload
+              :show-file-list="false"
+              accept=".xlsx,.xls"
+              :before-upload="beforeImport"
+              :http-request="handleImport"
+            >
+              <el-button
+                type="info"
+                plain
+                icon="Upload"
+                :loading="importLoading"
+                v-hasPermi="['system:sms:import']"
+              >
+                导入
+              </el-button>
+            </el-upload>
+          </el-col>
+          <!-- ⭐ 新增：模板下载按钮 -->
+          <el-col :span="1.5">
+            <el-button
+              type="success"
+              plain
+              icon="Document"
+              @click="handleImportTemplate"
+              v-hasPermi="['system:sms:import']"
+            >
+              模板下载
+            </el-button>
+          </el-col>
           <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
         </el-row>
       </template>
@@ -50,6 +80,7 @@
         <el-table-column label="电话号码" align="center" prop="phoneNumber" />
         <el-table-column label="目标URL" align="center" prop="targetUrl" />
         <el-table-column label="短码" align="center" prop="shortcode" />
+        <el-table-column label="创建时间" align="center" prop="createTime" />
         <el-table-column label="发送状态" align="center" prop="sendStatus">
           <template #default="scope">
             <dict-tag :options="sys_sms_send" :value="scope.row.sendStatus"/>
@@ -99,13 +130,15 @@
 </template>
 
 <script setup name="Sms" lang="ts">
-import { listSms, getSms, delSms, addSms, updateSms } from '@/api/system/sms';
+import { listSms, getSms, delSms, addSms, updateSms, importSms } from '@/api/system/sms';
 import { SmsVO, SmsQuery, SmsForm } from '@/api/system/sms/types';
+import type { UploadRequestOptions } from 'element-plus';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { sys_sms_send, sys_normal_disable } = toRefs<any>(proxy?.useDict('sys_sms_send', 'sys_normal_disable'));
 
 const smsList = ref<SmsVO[]>([]);
+const importLoading = ref(false);
 const buttonLoading = ref(false);
 const loading = ref(true);
 const showSearch = ref(true);
@@ -129,6 +162,7 @@ const initFormData: SmsForm = {
   targetUrl: undefined,
   shortcode: undefined,
   sendStatus: undefined,
+  createTime: undefined
 }
 const data = reactive<PageData<SmsForm, SmsQuery>>({
   form: {...initFormData},
@@ -144,21 +178,12 @@ const data = reactive<PageData<SmsForm, SmsQuery>>({
     }
   },
   rules: {
-    id: [
-      { required: true, message: "主键不能为空", trigger: "blur" }
-    ],
-    userName: [
-      { required: true, message: "用户账号不能为空", trigger: "blur" }
-    ],
     phoneNumber: [
       { required: true, message: "电话号码不能为空", trigger: "blur" }
     ],
     targetUrl: [
       { required: true, message: "目标URL不能为空", trigger: "blur" }
-    ],
-    shortcode: [
-      { required: true, message: "短码不能为空", trigger: "blur" }
-    ],
+    ]
   }
 });
 
@@ -241,7 +266,7 @@ const submitForm = () => {
 /** 删除按钮操作 */
 const handleDelete = async (row?: SmsVO) => {
   const _ids = row?.id || ids.value;
-  await proxy?.$modal.confirm('是否确认删除短信映射编号为"' + _ids + '"的数据项？').finally(() => loading.value = false);
+  await proxy?.$modal.confirm('是否确认删除短信映射编号的数据项？').finally(() => loading.value = false);
   await delSms(_ids);
   proxy?.$modal.msgSuccess("删除成功");
   await getList();
@@ -252,6 +277,56 @@ const handleExport = () => {
   proxy?.download('system/sms/export', {
     ...queryParams.value
   }, `sms_${new Date().getTime()}.xlsx`)
+}
+/** 导入前校验文件 */
+const beforeImport = (file: File) => {
+  const isExcel =
+    file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    file.type === 'application/vnd.ms-excel';
+  if (!isExcel) {
+    proxy?.$modal.msgError('只能上传 Excel 文件（.xlsx 或 .xls）');
+    return false;
+  }
+  // 这里限制 100MB，可按需调整
+  const isLt100M = file.size / 1024 / 1024 < 100;
+  if (!isLt100M) {
+    proxy?.$modal.msgError('上传文件大小不能超过 100MB');
+    return false;
+  }
+  return true;
+};
+
+/** 自定义上传逻辑：调用后台导入接口 */
+const handleImport = async (options: UploadRequestOptions) => {
+  const { file } = options;
+
+  try {
+    importLoading.value = true;
+
+    const res = await importSms(file as File);
+    proxy?.$modal.msgSuccess(res.msg || '导入成功');
+
+    // ⭐⭐ 导入成功之后自动刷新列表
+    await getList();
+
+    // 告诉 el-upload 成功了（可选）
+    options?.onSuccess?.(res as any, file as any);
+  } catch (e: any) {
+    proxy?.$modal.msgError(e?.msg || '导入失败');
+    options?.onError?.(e as any);
+  } finally {
+    importLoading.value = false;
+  }
+};
+
+/** 导入模板下载 */
+const handleImportTemplate = () => {
+  // 这里的 URL 需要你后端提供一个接口，比如 /system/sms/importTemplate
+  proxy?.download(
+    'system/sms/importTemplate',
+    {},
+    `sms_import_template_${new Date().getTime()}.xlsx`
+  );
 }
 
 onMounted(() => {
