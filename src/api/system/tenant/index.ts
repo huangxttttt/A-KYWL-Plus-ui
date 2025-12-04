@@ -55,6 +55,20 @@ export function changeTenantStatus(id: string | number, tenantId: string | numbe
   });
 }
 
+// 租户状态修改
+export function changeTenantProxyStatus(id: string | number, tenantId: string | number, smsProxy: string) {
+  const data = {
+    id,
+    tenantId,
+    smsProxy
+  };
+  return request({
+    url: '/system/tenant/changeProxyStatus',
+    method: 'put',
+    data: data
+  });
+}
+
 // 删除租户
 export function delTenant(id: string | number | Array<string | number>) {
   return request({

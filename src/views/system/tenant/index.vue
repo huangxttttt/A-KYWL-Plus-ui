@@ -72,6 +72,16 @@
             <el-switch v-model="scope.row.status" active-value="0" inactive-value="1" @change="handleStatusChange(scope.row)"></el-switch>
           </template>
         </el-table-column>
+        <el-table-column label="映射时间" align="center" prop="expireTime" width="180">
+          <template #default="scope">
+            <span>{{ proxy.parseTime(scope.row.proxyTime, '{h}:{i}:{s}') }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="映射状态" align="center" prop="smsProxy">
+          <template #default="scope">
+            <el-switch v-model="scope.row.smsProxy" active-value="0" inactive-value="1" @change="handleProxyStatusChange(scope.row)"></el-switch>
+          </template>
+        </el-table-column>
         <el-table-column width="150" label="操作" align="center" fixed="right" class-name="small-padding fixed-width">
           <template #default="scope">
             <el-tooltip content="修改" placement="top">
@@ -117,6 +127,14 @@
           <el-date-picker v-model="form.expireTime" clearable type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="请选择过期时间">
           </el-date-picker>
         </el-form-item>
+        <el-form-item label="映射时间" prop="proxyTime">
+          <el-time-picker
+            v-model="form.proxyTime"
+            clearable
+            value-format="HH:mm:ss"
+            placeholder="请选择时间">
+          </el-time-picker>
+        </el-form-item>
         <el-form-item label="用户数量" prop="accountCount">
           <el-input v-model="form.accountCount" placeholder="请输入用户数量" />
         </el-form-item>
@@ -154,6 +172,7 @@ import {
   addTenant,
   updateTenant,
   changeTenantStatus,
+  changeTenantProxyStatus,
   syncTenantPackage,
   syncTenantDict,
   syncTenantConfig
@@ -200,8 +219,10 @@ const initFormData: TenantForm = {
   remark: '',
   packageId: '',
   expireTime: '',
+  proxyTime: '',
   accountCount: 0,
-  status: '0'
+  status: '0',
+  smsProxy: '0'
 };
 const data = reactive<PageData<TenantForm, TenantQuery>>({
   form: { ...initFormData },
@@ -256,6 +277,17 @@ const handleStatusChange = async (row: TenantVO) => {
     proxy?.$modal.msgSuccess(text + '成功');
   } catch {
     row.status = row.status === '0' ? '1' : '0';
+  }
+};
+
+const handleProxyStatusChange = async (row: TenantVO) => {
+  const text = row.smsProxy === '0' ? '启用映射' : '停用映射';
+  try {
+    await proxy?.$modal.confirm('确认要"' + text + '""' + row.companyName + '"租户吗？');
+    await changeTenantProxyStatus(row.id, row.tenantId, row.smsProxy);
+    proxy?.$modal.msgSuccess(text + '成功');
+  } catch {
+    row.smsProxy = row.smsProxy === '0' ? '1' : '0';
   }
 };
 
