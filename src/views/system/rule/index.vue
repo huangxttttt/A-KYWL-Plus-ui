@@ -92,33 +92,47 @@
 
       <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
     </el-card>
-    <!-- 添加或修改访问拦截规则（支持IP/地区）对话框 -->
+
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="500px" append-to-body>
       <el-form ref="ruleFormRef" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="规则类型" prop="ruleType">
-          <el-radio-group v-model="form.ruleType">
+          <el-radio-group v-model="form.ruleType" @change="handleRuleTypeChange">
             <el-radio v-for="dict in sys_rule" :key="dict.value" :value="parseInt(dict.value)">{{ dict.label }} </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="IP地址" prop="ipAddress">
+
+        <!-- 根据 ruleType 条件渲染输入框 -->
+
+        <!-- IP 地址 -->
+        <el-form-item label="IP地址" prop="ipAddress" v-if="form.ruleType === 1">
           <el-input v-model="form.ipAddress" placeholder="请输入IP地址(IPv4/IPv6)" />
         </el-form-item>
-        <el-form-item label="IP段" prop="ipCidr">
+
+        <!-- IP 段 -->
+        <el-form-item label="IP段" prop="ipCidr" v-if="form.ruleType === 2">
           <el-input v-model="form.ipCidr" placeholder="请输入IP段，例如 192.168.1.0/24" />
         </el-form-item>
-        <el-form-item label="国家" prop="country">
+
+        <!-- 国家 -->
+        <el-form-item label="国家" prop="country" v-if="form.ruleType === 3">
           <el-input v-model="form.country" placeholder="请输入国家" />
         </el-form-item>
-        <el-form-item label="省/州" prop="province">
+
+        <!-- 省/州 -->
+        <el-form-item label="省/州" prop="province" v-if="form.ruleType === 4">
           <el-input v-model="form.province" placeholder="请输入省/州" />
         </el-form-item>
-        <el-form-item label="城市" prop="city">
+
+        <!-- 城市 -->
+        <el-form-item label="城市" prop="city" v-if="form.ruleType === 5">
           <el-input v-model="form.city" placeholder="请输入城市" />
         </el-form-item>
+
         <el-form-item label="拦截原因" prop="reason">
           <el-input v-model="form.reason" placeholder="请输入拦截原因" />
         </el-form-item>
 
+        <!-- 状态 -->
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio v-for="dict in sys_normal_disable" :key="dict.value" :value="parseInt(dict.value)">{{ dict.label }} </el-radio>
@@ -132,6 +146,8 @@
         </div>
       </template>
     </el-dialog>
+
+
   </div>
 </template>
 
@@ -188,7 +204,7 @@ const data = reactive<PageData<RuleForm, RuleQuery>>({
   rules: {
     id: [{ required: true, message: '主键ID不能为空', trigger: 'blur' }],
     ruleType: [{ required: true, message: '规则类型：1=IP，2=IP段，3=国家，4=省份，5=城市不能为空', trigger: 'change' }],
-    status: [{ required: true, message: '状态：0=启用，1=禁用不能为空', trigger: 'change' }]
+    status: [{ required: true, message: '状态不能为空', trigger: 'change' }]
   }
 });
 
@@ -233,6 +249,44 @@ const handleSelectionChange = (selection: RuleVO[]) => {
   single.value = selection.length != 1;
   multiple.value = !selection.length;
 };
+
+const handleRuleTypeChange = () => {
+
+  // 根据选择的 ruleType 清空不相关的字段
+  if (data.form.ruleType === 1) {
+    // 清空与 IP 地址相关的字段
+    data.form.ipCidr = '';
+    data.form.country = '';
+    data.form.province = '';
+    data.form.city = '';
+  } else if (data.form.ruleType === 2) {
+    // 清空与 IP 段相关的字段
+    data.form.ipAddress = '';
+    data.form.country = '';
+    data.form.province = '';
+    data.form.city = '';
+  } else if (data.form.ruleType === 3) {
+    // 清空与国家相关的字段
+    data.form.ipAddress = '';
+    data.form.ipCidr = '';
+    data.form.province = '';
+    data.form.city = '';
+  } else if (data.form.ruleType === 4) {
+    // 清空与省/州相关的字段
+    data.form.ipAddress = '';
+    data.form.ipCidr = '';
+    data.form.country = '';
+    data.form.city = '';
+  } else if (data.form.ruleType === 5) {
+    // 清空与城市相关的字段
+    data.form.ipAddress = '';
+    data.form.ipCidr = '';
+    data.form.country = '';
+    data.form.province = '';
+  }
+};
+
+
 
 /** 新增按钮操作 */
 const handleAdd = () => {

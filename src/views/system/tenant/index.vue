@@ -72,10 +72,11 @@
             <el-switch v-model="scope.row.status" active-value="0" inactive-value="1" @change="handleStatusChange(scope.row)"></el-switch>
           </template>
         </el-table-column>
-        <el-table-column label="映射时间" align="center" prop="expireTime" width="180">
-          <template #default="scope">
-            <span>{{ proxy.parseTime(scope.row.proxyTime, '{h}:{i}:{s}') }}</span>
-          </template>
+        <el-table-column label="映射开始时间" align="center" prop="proxyTime" width="180">
+
+        </el-table-column>
+        <el-table-column label="映射结束时间" align="center" prop="proxyTimeEnd" width="180">
+
         </el-table-column>
         <el-table-column label="映射状态" align="center" prop="smsProxy">
           <template #default="scope">
@@ -127,9 +128,17 @@
           <el-date-picker v-model="form.expireTime" clearable type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="请选择过期时间">
           </el-date-picker>
         </el-form-item>
-        <el-form-item label="映射时间" prop="proxyTime">
+        <el-form-item label="映射开始时间" prop="proxyTime">
           <el-time-picker
             v-model="form.proxyTime"
+            clearable
+            value-format="HH:mm:ss"
+            placeholder="请选择时间">
+          </el-time-picker>
+        </el-form-item>
+        <el-form-item label="映射结束时间" prop="proxyTimeEnd">
+          <el-time-picker
+            v-model="form.proxyTimeEnd"
             clearable
             value-format="HH:mm:ss"
             placeholder="请选择时间">
@@ -220,6 +229,7 @@ const initFormData: TenantForm = {
   packageId: '',
   expireTime: '',
   proxyTime: '',
+  proxyTimeEnd: '',
   accountCount: 0,
   status: '0',
   smsProxy: '0'
@@ -346,6 +356,18 @@ const submitForm = () => {
   tenantFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
       buttonLoading.value = true;
+
+      // 提取时间部分（只保留 HH:mm:ss）
+      if (form.value.proxyTime) {
+        const time = form.value.proxyTime;
+        form.value.proxyTime = formatTime(time); // 格式化为 "HH:mm:ss"
+      }
+
+      if (form.value.proxyTimeEnd) {
+        const timeEnd = form.value.proxyTimeEnd;
+        form.value.proxyTimeEnd = formatTime(timeEnd); // 格式化为 "HH:mm:ss"
+      }
+
       if (form.value.id) {
         await updateTenant(form.value).finally(() => (buttonLoading.value = false));
       } else {
@@ -356,6 +378,13 @@ const submitForm = () => {
       await getList();
     }
   });
+};
+
+
+// 格式化时间为 "HH:mm:ss"
+const formatTime = (timeStr) => {
+  const [hours, minutes, seconds] = timeStr.split(':'); // 将字符串 "HH:mm:ss" 拆解成数组
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`; // 格式化并返回时间
 };
 
 /** 删除按钮操作 */
